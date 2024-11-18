@@ -1,6 +1,10 @@
-import numpy as np
+import matplotlib
+matplotlib.use('Agg')  # Use the 'Agg' backend for non-GUI rendering
 import matplotlib.pyplot as plt
+
+import numpy as np
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import log_loss
 from scipy.spatial.distance import cdist
 import os
 
@@ -20,7 +24,7 @@ def generate_ellipsoid_clusters(distance, n_samples=100, cluster_std=0.5):
     X2 = np.random.multivariate_normal(mean=[1, 1], cov=covariance_matrix, size=n_samples)
     
     # Implement: Shift the second cluster along the x-axis and y-axis for a given distance
-    raise NotImplementedError("Implement the shift of the second cluster")
+    X2 += [distance, distance]
     y2 = np.ones(n_samples)
 
     # Combine the clusters into one dataset
@@ -42,7 +46,7 @@ def do_experiments(start, end, step_num):
     beta0_list, beta1_list, beta2_list, slope_list, intercept_list, loss_list, margin_widths = [], [], [], [], [], [], []
     sample_data = {}  # Store sample datasets and models for visualization
 
-    n_samples = 8
+    n_samples = step_num
     n_cols = 2  # Fixed number of columns
     n_rows = (n_samples + n_cols - 1) // n_cols  # Calculate rows needed
     plt.figure(figsize=(20, n_rows * 10))  # Adjust figure height based on rows
@@ -51,14 +55,25 @@ def do_experiments(start, end, step_num):
     for i, distance in enumerate(shift_distances, 1):
         X, y = generate_ellipsoid_clusters(distance=distance)
         # Implement: record all necessary information for each distance
-        raise NotImplementedError("Record all necessary information for each distance")
+        model, beta0, beta1, beta2 = fit_logistic_regression(X, y)
+        beta0_list.append(beta0)
+        beta1_list.append(beta1)
+        beta2_list.append(beta2)
+        slope = -beta1 / beta2
+        intercept = -beta0 / beta2
+        slope_list.append(slope)
+        intercept_list.append(intercept)
+        
+        # Implement: Calculate and store logistic loss
+        probabilities = model.predict_proba(X)
+        loss = log_loss(y, probabilities)
+        loss_list.append(loss)
 
         # Implement: Plot the dataset
         plt.subplot(n_rows, n_cols, i)
-        raise NotImplementedError("Plot the dataset")
-
-        # Implement: Calculate and store logistic loss
-        raise NotImplementedError("Calculate and store logistic loss")
+        plt.scatter(X[y == 0, 0], X[y == 0, 1], c='blue', label='Class 0', edgecolors='k')
+        plt.scatter(X[y == 1, 0], X[y == 1, 1], c='red', label='Class 1', edgecolors='k')
+        
         # Calculate margin width between 70% confidence contours for each class
         x_min, x_max = X[:, 0].min() - 1, X[:, 0].max() + 1
         y_min, y_max = X[:, 1].min() - 1, X[:, 1].max() + 1
@@ -66,8 +81,10 @@ def do_experiments(start, end, step_num):
         Z = model.predict_proba(np.c_[xx.ravel(), yy.ravel()])[:, 1]
         Z = Z.reshape(xx.shape)
 
-        # Implement: Calculate decision boundary slope and intercept
-        raise NotImplementedError("Calculate and plot decision boundary slope and intercept")
+        # Implement: Calculate and plot decision boundary slope and intercept
+        x_vals = np.array([x_min, x_max])
+        y_vals = slope * x_vals + intercept
+        plt.plot(x_vals, y_vals, color='green', label='Decision Boundary')
 
         # Plot fading red and blue contours for confidence levels
         contour_levels = [0.7, 0.8, 0.9]
@@ -83,6 +100,8 @@ def do_experiments(start, end, step_num):
         plt.title(f"Shift Distance = {distance}", fontsize=24)
         plt.xlabel("x1")
         plt.ylabel("x2")
+        plt.xlim(x_min, x_max)
+        plt.ylim(y_min, y_max)
 
         # Display decision boundary equation and margin width on the plot
         equation_text = f"{beta0:.2f} + {beta1:.2f} * x1 + {beta2:.2f} * x2 = 0\nx2 = {slope:.2f} * x1 + {intercept:.2f}"
@@ -105,43 +124,51 @@ def do_experiments(start, end, step_num):
 
     # Implement: Plot beta0
     plt.subplot(3, 3, 1)
+    plt.plot(shift_distances, beta0_list, marker='o')
     plt.title("Shift Distance vs Beta0")
     plt.xlabel("Shift Distance")
     plt.ylabel("Beta0")
 
     # Implement: Plot beta1
     plt.subplot(3, 3, 2)
+    plt.plot(shift_distances, beta1_list, marker='o')
     plt.title("Shift Distance vs Beta1 (Coefficient for x1)")
     plt.xlabel("Shift Distance")
     plt.ylabel("Beta1")
 
     # Implement: Plot beta2
     plt.subplot(3, 3, 3)
+    plt.plot(shift_distances, beta2_list, marker='o')
     plt.title("Shift Distance vs Beta2 (Coefficient for x2)")
     plt.xlabel("Shift Distance")
     plt.ylabel("Beta2")
 
     # Implement: Plot beta1 / beta2 (Slope)
     plt.subplot(3, 3, 4)
+    plt.plot(shift_distances, slope_list, marker='o')
     plt.title("Shift Distance vs Beta1 / Beta2 (Slope)")
     plt.xlabel("Shift Distance")
     plt.ylabel("Beta1 / Beta2")
     plt.ylim(-2, 0)
 
     # Implement: Plot beta0 / beta2 (Intercept ratio)
+    beta0_over_beta2 = [b0 / b2 for b0, b2 in zip(beta0_list, beta2_list)]
     plt.subplot(3, 3, 5)
+    plt.plot(shift_distances, beta0_over_beta2, marker='o')
     plt.title("Shift Distance vs Beta0 / Beta2 (Intercept Ratio)")
     plt.xlabel("Shift Distance")
     plt.ylabel("Beta0 / Beta2")
 
     # Plot logistic loss
     plt.subplot(3, 3, 6)
+    plt.plot(shift_distances, loss_list, marker='o')
     plt.title("Shift Distance vs Logistic Loss")
     plt.xlabel("Shift Distance")
     plt.ylabel("Logistic Loss")
 
     # Implement: Plot margin width
     plt.subplot(3, 3, 7)
+    plt.plot(shift_distances, margin_widths, marker='o')
     plt.title("Shift Distance vs Margin Width")
     plt.xlabel("Shift Distance")
     plt.ylabel("Margin Width")
